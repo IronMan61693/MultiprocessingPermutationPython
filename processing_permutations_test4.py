@@ -5,11 +5,10 @@
 #  calculate the number of permutations, solve for all possible solutions,
 #  run the above with multiprocessing
 # Owner: Dominic Pontious
+# This uses Queue
 
 # Makes use of process and value
-from multiprocessing import Process, Value
-
-from collections import Counter
+from multiprocessing import Process
 
 def divideNumberListPermutations(numberList, processCount):
 	"""

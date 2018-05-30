@@ -5,6 +5,7 @@
 #  calculate the number of permutations, solve for all possible solutions,
 #  run the above with multiprocessing
 # Owner: Dominic Pontious
+# Work with brute force and an Array
 
 from processing_permutations_test3 import *
 from multiprocessing import cpu_count, Array

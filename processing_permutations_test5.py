@@ -5,12 +5,10 @@
 #  calculate the number of permutations, solve for all possible solutions,
 #  run the above with multiprocessing
 # Owner: Dominic Pontious
-# Tries using Counter() and more robust use of sets/dictionaries
+# This uses Pipe
 
-# Makes use of process and value
-from multiprocessing import Process, Value
-
-from collections import Counter
+# Makes use of process and pipe
+from multiprocessing import Process, Pipe
 
 def divideNumberListPermutations(numberList, processCount):
 	"""
@@ -142,16 +140,18 @@ class listOfPermutations(Process):
 		 Adds each of the tuples in the set to the permListArray, which is shared between the processes, sequentially
 	"""
 
-	def __init__(self, index, minNumber, maxNumber, permListArray, permutationNumberAsList):
+	def __init__(self, minNumber, maxNumber, permConn, permutationNumberAsList):
 		"""
 		Initializes the process, calls the Process class __init__ and then sets each of the variables equal to their
 		 respective inputs
 
-		Input: 	index <int>
-				minNumber <int>
+		Input: 	minNumber <int>
 				maxNumber <int>
-				permListArray [<int>] <- shared Array between processes
+				permConn <Object> <- The sending end of a Pipe object
 				permutationNumberAsList [<int>]
+				permNumAsSet {(int)} <- set of tuples of ints
+				comparePermutation <str>
+				permSet {(int)} <- set of tuples of ints
 		Output: None
 		"""
 		Process.__init__(self)
@@ -160,9 +160,7 @@ class listOfPermutations(Process):
 
 		self.maxNumber = maxNumber
 
-		self.index = index
-
-		self.permListArray = permListArray
+		self.permConn = permConn
 
 		self.permutationNumberAsList = permutationNumberAsList
 
@@ -172,12 +170,14 @@ class listOfPermutations(Process):
 
 		self.permSet = set()
 
+
 	def run(self):
 		"""
-		Adds the original tuple to the permSet, increments by one for every number in the range, from
-		 minimum to maximum, compares the digits of the current number with the permutation number, 
+		Increments by one for every number in the range, from minimum to maximum,
+		 compares the digits of the current number with the permutation number, 
 		 if they are the same adds them to the set
-		 Adds each of the tuples in the set to the permListArray, which is shared between the processes, sequentially
+		 Once a permutation is found, finds the next largest permutation
+		 Adds each of the tuples in the set to a tuple to pipe to the parent process
 		Input: None
 		Output: None
 		"""
@@ -191,11 +191,11 @@ class listOfPermutations(Process):
 		currentNumberString = str(currentNumber)	
 
 
-		# A check to ensure I do not enter an infinite while loop
+		# A check to ensure I do not enter an infinite loop
 		ifCount = 0
 		maxCount = 1e9
 
-		# This is the number of digits input and the -1 puts us at the last indexed spot
+		# This is the number of digits input 
 		length = len(self.permutationNumberAsList)
 
 
@@ -231,12 +231,6 @@ class listOfPermutations(Process):
 				# Find the next largest permutation numerically
 				######################################################################################################
 
-				# 
-				# ind = length
-				
-				# 
-				# # i.e. 13254 this will check 4 < 5 go to next index 5 > 2 stop at index 3
-
 				# We will be working right to left
 				switchNum = -1
 				replaceNum = -1
@@ -251,8 +245,6 @@ class listOfPermutations(Process):
 					switchNum = isSmaller
 
 				# This finds the smallest number to the right of the number which will be changed
-				# In example we check if 4 < 5 and then if 4 > 2
-				# since it is we move to the next spot in the list i.e. replace = index 4
 				for replacement in reversed(range(switchNum,length)):
 
 					if ((currentNumberAsList[replacement] > currentNumberAsList[switchNum])):
@@ -261,11 +253,9 @@ class listOfPermutations(Process):
 
 
 				# Here we swap the switchNum and the replace 
-				# i.e. now we have 13452
 				currentNumberAsList[switchNum], currentNumberAsList[replaceNum] = currentNumberAsList[replaceNum], currentNumberAsList[switchNum]
 
-				# Here we sort everything past where the index swap occured
-				# i.e. 13425
+				# Here we sort everything past where the swap occured
 				currentNumberAsList[switchNum+1: ] = sorted(currentNumberAsList[switchNum+1: ])
 
 				# Here we turn the list into an int to run again
@@ -287,51 +277,51 @@ class listOfPermutations(Process):
 
 			
 
-		# Exits if the while loop gets too large
-		if (ifCount >= maxCount):
-			print("You done goofed in while listOfPermutations")
-			exit(-1)
+			# Exits if the while loop gets too large
+			if (ifCount >= maxCount):
+				print("You done goofed in while listOfPermutations")
+				exit(-1)
 
-		# Adds each of the tuples as an integer to the permListArray
-		for tup in self.permSet:
+		# Pipe the permutations as a tuple to the parent process
+		self.permConn.send(tuple(self.permSet))
 
-			# Converts tuple into a string with the integers all next to one another
-			intTup = ''.join(str(i) for i in tup)
 
-			# Converts string into integer to index into the shared array
-			self.permListArray[self.index] = int(intTup)
-			self.index += 1
 
 
 class solutionsWithPermutations(Process):
 	"""
 	Variables:
-		index <int>
-		permSolutionArray [<int>] <- shared Array between processes
+		permSolutionConn <Object> <- The sending end of a Pipe object
 		permListAsTuples [(<int>)] 
 		permSetOfTuples {(<int>)}
-		count <int> 4 bit
-		count.value <int>
 		solutionSet {(<int>)}
 	Methods:
 		__init__(self, index, permSolutionArray, permListAsTuples): Initializes the process turns the list into a set 
 		run(self) For every element in the set of tuples compares it against the equations, and if it is not
 		 already a solution adds it to the set.
-		 Adds each of the tuples in the set to the permSolutionArray, which is shared between the processes, sequentially
+		 Pipes each of the tuples in the set to the parent process
 	"""
-	def __init__(self, index, permSolutionArray, permListAsTuples):
+	def __init__(self, permSolutionConn, permListAsTuples):
+		"""
+		Initializes the process turns the list into a set 
+		"""
 		Process.__init__(self)
 
-		self.index = index
-
-		self.permSolutionArray = permSolutionArray
+		self.permSolutionConn = permSolutionConn
 
 		self.permSetOfTuples = set(permListAsTuples)
 
 		self.solutionSet = set()
 
 	def run(self):
+		"""
+		For every element in the set of tuples compares it against the equations, and if it is not
+		 already a solution adds it to the set.
+		 Pipes each of the tuples in the set to the parent process
+		"""
 
+		# A set of tuples is passed in and we check each of the values within the tuple to see which of them have the 
+		# equation as true
 		for number in self.permSetOfTuples:
 
 			'''
@@ -346,16 +336,11 @@ class solutionsWithPermutations(Process):
 		 		 / number[8]) - 10) == 66)
 
 			'''
+			# Here is the formula
+			if ((number[0] + 13 * number[1] / number[2] + number[3] + 12 * number[4] - number[5] - 11 + number[6] * number[7]\
+		 		 / number[8] - 10 == 66) and (number not in self.solutionSet)):	
 
-			if ((number[0] + 2 * number[1] / number[2] + number[3] + 12 * number[4] == 43) and (number not in self.solutionSet)):	
 				self.solutionSet.add(number)
-
-		# Adds each of the tuples as an integer to the permSolutionArray
-		for tup in self.solutionSet:
-
-			# Converts tuple into a string with the integers all next to one another
-			intTup = ''.join(str(i) for i in tup)
-
-			# Converts string into integer to index into the shared array
-			self.permSolutionArray[self.index] = int(intTup)
-			self.index += 1
+			
+		# Using the Pipe to send the solutions as a tuple
+		self.permSolutionConn.send(tuple(self.solutionSet))

@@ -5,6 +5,7 @@
 #  calculate the number of permutations, solve for all possible solutions,
 #  run the above with multiprocessing
 # Owner: Dominic Pontious
+# Uses queue approach, works with _brute and _test4
 
 from processing_permutations_test4 import *
 from multiprocessing import cpu_count, Queue

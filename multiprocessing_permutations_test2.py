@@ -5,9 +5,10 @@
 #  calculate the number of permutations, solve for all possible solutions,
 #  run the above with multiprocessing
 # Owner: Dominic Pontious
+# This is for _test5 Attempts Pipe
 
-from processing_permutations_test4 import *
-from multiprocessing import cpu_count, Queue
+from processing_permutations_test5 import *
+from multiprocessing import cpu_count, Pipe
 import itertools
 import argparse
 import datetime
@@ -54,26 +55,25 @@ def runListPermutations(dividedList, permutationNumberAsList, processCount):
 	Given a list which has as its 0 elements the minimum number for each chunk
 	 and the 1 elements the maximum number for each chunk, see divideNumberListPermutations()
 	 and the number which is being permuted as a list
-	 Creates a shared array permListArray, a list to track the processes processList,
+	 Creates a pipe, a list to track the processes processList,
 	 a list of the permutations permList, and a set of the permutations permSet
 	 starts a listOfPermutations process for each of the chunks, waits for them to finish
-	 The array has the permutations as integers in each index spot, so takes each of these 
-	 integers and converts them to a tuple checks it has not been added and then adds them
+	 The child has sent each of their chunks of permutations as a tuple containing 
+	 tuples extracts the tuples and adds them to the permSet which is then returned
 
 	Input: 	dividedList [<int>]
 			permutationNumberAsList [<int>]
 			processCount <int>
-	Output: permList [<int>]
+	Output: permSet {(<int>)}
 	"""
 
 
-	# Initializes the array for 2 bit int and with size of sizeOfArray
-	permListQueue = Queue()
+	# Initializes a pipe between child and parent processes
+	parent_conn, child_conn = Pipe()
 
 
 	# Initialize the process list permutations list and permutations set
 	processList = []
-	# permList = []
 	permSet = set()
 
 	minPermutationAsList = sorted(permutationNumberAsList)
@@ -85,52 +85,40 @@ def runListPermutations(dividedList, permutationNumberAsList, processCount):
 		minNumber = valuesList[0]
 		maxNumber = valuesList[1]
 
+		# Defines the process
+		process = listOfPermutations(minNumber, maxNumber, child_conn, minPermutationAsList)
 
-		process = listOfPermutations(minNumber, maxNumber, permListQueue, minPermutationAsList)
-
+		# Adds the new process to the processList
 		processList.append(process)
+
+		# Starts the process
 		process.start()
+
+		# Pulls each tuple out and adds it to the permSet
+		for tupl in parent_conn.recv():
+			permSet.add(tupl)
 
 	# Waits for all of the processes to finish
 	for process in processList:
 		process.join()
 
-	# Takes the results from the Array and makes them into a list of tuples
-	for permutation in range(0,permListQueue.qsize()):
-
-		try:
-
-			permTuple = permListQueue.get_nowait()
-
-			# permTuple = tuple(int(d) for d in str(permutation))
-
-			if permTuple not in permSet:
-
-				permSet.add(permTuple)
-				# permList.append(permTuple)
-
-		except Empty:
-			break
 
 	return permSet
 
 def runSolutionsPermutations(dividedList):
 	"""
 	Given a list which has all possible permutations of some given number, 
-	 see dividePermutationList(), creates an array which is shared between the 
-	 processes, a list to track the processes processList, 
-	 a list of the solutions to the equation permSolutionList, and 
-	 a set of the solutions permSolutionSet
-	 starts a process saving to the correct part in the array, given by index,
-	 and a list that it is checking if it has solutions checkList,
-	 waits for the process to finish and then takes the resulting array and 
-	 turns the solutions into tuples in a list called permSolutionList
+	 see dividePermutationList(), establishes a pipe between the parent and
+	 child process, a list to track the processes processList, 
+	 and a set of the solutions to the equation permSolutionSet
+	 waits for the process to finish and then takes the resulting set
+	 created by the child processes to return as the solution set of tuples
 
 	Input: 	dividedList [(<int>)]
-	Output: permSolutionList [<int>]
+	Output: permSolutionSet {(<int>)}
 	"""
-	# Creates a shared queue between the processes
-	permSolutionQueue = Queue()
+	# Sets a pipe between parent and child processes
+	parent_conn, child_conn = Pipe()
 	
 	# Initialize the working lists and set
 	processList = []
@@ -141,30 +129,24 @@ def runSolutionsPermutations(dividedList):
 	# and start the process
 	for number, checkList in enumerate(dividedList):
 		
-		process = solutionsWithPermutations(permSolutionQueue, checkList)
+		# Defines the process
+		process = solutionsWithPermutations(child_conn, checkList)
 
+		# Adds the new process to the processList
 		processList.append(process)
+
+		# Starts the process
 		process.start()
+
+		# Pulls each tuple out and adds it to the solution Set
+		for tupl in parent_conn.recv():
+			permSolutionSet.add(tupl)
+
 
 	# Wait for the processes to finish
 	for process in processList:
 
 		process.join()
-
-	# Takes the results from the Array and makes them into a list of tuples
-	for permSolution in range(0,permSolutionQueue.qsize()):
-
-		try:
-
-			permSolTuple = tuple(int(d) for d in permSolutionQueue.get_nowait())
-
-			if permSolTuple not in permSolutionSet:
-
-				permSolutionSet.add(permSolTuple)
-				# permSolutionList.append(permSolTuple)
-
-		except Empty:
-			break
 
 
 	return permSolutionSet
@@ -193,7 +175,7 @@ def main():
 	defaultProcessCount = cpu_count()
 
 	# Default numbers and numberLists
-	defaultNumberList = [1, 2, 3, 4, 5]
+	defaultNumberList = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
 	######################################################################################################
@@ -227,6 +209,7 @@ def main():
 	# Calculate all permutations using multiple processes
 	listOfPerms = runListPermutations(dividedNumbers, totalNumberList, totalProcess)
 
+	# Prints the number of permutations found
 	print("Number of permutations ", str(len(listOfPerms)))
 
 
