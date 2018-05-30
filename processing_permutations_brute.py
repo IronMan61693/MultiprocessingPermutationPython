@@ -117,7 +117,7 @@ class listOfPermutations(Process):
 		 Adds each of the tuples in the set to the permListArray, which is shared between the processes, sequentially
 	"""
 
-	def __init__(self, index, minNumber, maxNumber, permListArray, permutationNumberAsList):
+	def __init__(self, minNumber, maxNumber, permListQueue, permutationNumberAsList):
 		"""
 		Initializes the process, calls the Process class __init__ and then sets each of the variables equal to their
 		 respective inputs
@@ -135,13 +135,13 @@ class listOfPermutations(Process):
 
 		self.maxNumber = maxNumber
 
-		self.index = index
-
-		self.count = index
-
-		self.permListArray = permListArray
+		self.permListQueue = permListQueue
 
 		self.permutationNumberAsList = permutationNumberAsList
+
+		self.permutationNumberAsInt = int("".join(str(x) for x in permutationNumberAsList))
+
+		self.permutationNumberAsString = sorted(str(self.permutationNumberAsInt))
 
 		self.permSet = set()
 
@@ -157,45 +157,42 @@ class listOfPermutations(Process):
 		# This is the starting number
 		currentNumber = self.minNumber
 
-		# Adds the base permutation as a tuple to the set
-		self.permSet.add(tuple(self.permutationNumberAsList))
-
 		# A check to ensure I do not enter an infinite while loop
-		whileCount = 0
+		ifCount = 0
 		maxCount = 1e9
+		print(str(self.minNumber), " min and max: ", str(self.maxNumber))
 
 		# Loop through every number from the minimum to the maximum
-		while (currentNumber <= self.maxNumber and whileCount < maxCount):
+		for number in range(self.minNumber , self.maxNumber +1):
 			# A sanity check that the code did not freeze for large permutation checks
-			whileCount += 1
-			if (whileCount % 100000 == 0):
-				print("+", whileCount, " while count listAllPermutations")
 
+			ifCount += 1
+			if (ifCount % 100000 == 0):
+				print("+", ifCount, " while count listAllPermutations")
+
+			if (ifCount >= maxCount):
+				print("You done goofed in for loop listOfPermutations")
+				exit(-1)
+
+			
 			# Turns the current integer number into a list of single numbers
-			digitsOfCurrentNum = [int(d) for d in str(currentNumber)]
+			stringCurrentNum = str(currentNumber)
 
 			# Checks the digits of the current list against those of the original
-			if (sorted(digitsOfCurrentNum) == self.permutationNumberAsList):
-
+			if (sorted(stringCurrentNum) == self.permutationNumberAsString):
 				# If the digits are the same add them as a tuple to the set
-				self.permSet.add(tuple(digitsOfCurrentNum))
+				self.permSet.add(tuple(stringCurrentNum))
+				currentNumber += 8
 
 			currentNumber += 1
 
-		# Exits if the while loop gets too large and print a statement to know
-		if (whileCount >= maxCount):
-			print("You done goofed in while listOfPermutations")
-			exit(-1)
 
-		# Adds each of the tuples as an integer to the permListArray
+		# Adds each of the tuples as an integer to the permListQueue
 		for tup in self.permSet:
 
-			# Converts tuple into a string with the integers all next to one another
-			intTup = ''.join(str(i) for i in tup)
-
 			# Converts string into integer to index into the shared array
-			self.permListArray[self.index] = int(intTup)
-			self.index += 1
+			# intTup = (''.join(str(i) for i in tup))
+			self.permListQueue.put(tup)
 
 
 class solutionsWithPermutations(Process):
@@ -214,20 +211,23 @@ class solutionsWithPermutations(Process):
 		 already a solution adds it to the set.
 		 Adds each of the tuples in the set to the permSolutionArray, which is shared between the processes, sequentially
 	"""
-	def __init__(self, index, permSolutionArray, permListAsTuples):
+	def __init__(self, permSolutionQueue, permListAsTuples):
 		Process.__init__(self)
 
-		self.index = index
+		self.permSolutionQueue = permSolutionQueue
 
-		self.permSolutionArray = permSolutionArray
-
-		self.permSetOfTuples = set(permListAsTuples)
+		self.permSetOfTuplesString = set(permListAsTuples)
 
 		self.solutionSet = set()
 
-	def run(self):
 
-		for number in self.permSetOfTuples:
+	def run(self):
+		permSetTuplesInt = set()
+
+		for stringTuple in self.permSetOfTuplesString:
+			permSetTuplesInt.add(tuple(int(d) for d in stringTuple))
+
+		for number in permSetTuplesInt:
 
 			# (number[0] + 13 * number[1] / number[2] + number[3] + 12 * number[4] - number[5] - 11 + number[6] * number[7]\
 		 	#	 / number[8] - 10 == 66)
@@ -237,9 +237,8 @@ class solutionsWithPermutations(Process):
 		# Adds each of the tuples as an integer to the permSolutionArray
 		for tup in self.solutionSet:
 
-			# Converts tuple into a string with the integers all next to one another
-			intTup = ''.join(str(i) for i in tup)
+			# # Converts tuple into a string with the integers all next to one another
+			# intTup = ''.join(str(i) for i in tup)
 
 			# Converts string into integer to index into the shared array
-			self.permSolutionArray[self.index] = int(intTup)
-			self.index += 1
+			self.permSolutionQueue.put(tup)

@@ -11,19 +11,27 @@ from multiprocessing import Process, Value
 
 def divideNumberListPermutations(numberList, processCount):
 	"""
-	Given a minimum number, maximum number and the number of processes, divide the
-	 input up into even (as even as possible) chunks.
+	Given a numberList as a list which has an integer in each spot and the number of processes,
+	 divide the input up into even (as even as possible) chunks.
 
-	Input:  numberMin <int>
-			numberMax <int>
+	Input:  numberList [<int>]
 			process count <int>
 	Output: list of sub-lists [sub-list [<int>]]
 	"""
+
+	######################################################################################################
+	# Find the extremes (smallest and largest) possible values
+	######################################################################################################
+
 	numberMinList = sorted(numberList)
 	numberMaxList = sorted(numberList, reverse = True)
 
 	numberMin = int("".join(str(x) for x in numberMinList))
 	numberMax = int("".join(str(x) for x in numberMaxList))
+
+	######################################################################################################
+	# Break it up by the processes
+	######################################################################################################
 
 	# Calculate the index step size. Make sure the step is at least 1.
 	inputRange = numberMax - numberMin
@@ -32,8 +40,13 @@ def divideNumberListPermutations(numberList, processCount):
 	# If there are too many processes, reduce the number of processes to the number of input values
 	processCount = min(processCount, inputRange)
 
+
 	# A list of the minimum and maximum number to find permutations for from the input numbers
 	outputList = []
+
+	######################################################################################################
+	# Break the numbers into even(ish) chunks
+	######################################################################################################
 
 	# Go through each process number
 	for number in range(processCount):
@@ -69,6 +82,11 @@ def dividePermutationList(permutationList, processCount):
 			processCount <int>
 	Output: list of sub-lists [sub-list [<int>]]
 	"""
+
+	######################################################################################################
+	# Break it up by how many processes
+	######################################################################################################
+
 	# Calculate the index step size. Make sure the step is at least 1.
 	step = max(1, len(permutationList) // processCount)
 
@@ -77,6 +95,10 @@ def dividePermutationList(permutationList, processCount):
 
 	# A list containing lists of chunked permutation tuples
 	outputList = []
+
+	######################################################################################################
+	# Divide the permutations into chunks for each process to work with
+	######################################################################################################
 
 	# For each process segments the chunks of the permutations list
 	for number in range(processCount):
@@ -135,11 +157,9 @@ class listOfPermutations(Process):
 
 		self.maxNumber = maxNumber
 
-		#self.count = Value('L')
-
 		self.index = index
 
-		#self.count.value = index
+		self.count = index
 
 		self.permListArray = permListArray
 
@@ -156,71 +176,117 @@ class listOfPermutations(Process):
 		Input: None
 		Output: None
 		"""
+
+		######################################################################################################
+		# Initialize variables
+		######################################################################################################
+
 		# This is the starting number
 		currentNumber = self.minNumber
 
 		currentNumberAsList = [int(d) for d in str(currentNumber)]
 
-		print ("Min input number is: ", str(self.minNumber), " max input: ", str(self.maxNumber))
-
-
 		# A check to ensure I do not enter an infinite while loop
-		whileCount = 0
+		ifCount = 0
 		maxCount = 1e9
 
 		# This is the number of digits input and the -1 puts us at the last indexed spot
-		length = len(currentNumberAsList) -1
+		length = len(currentNumberAsList)
 
 
-		while (currentNumber < self.maxNumber and whileCount < maxCount):
+		######################################################################################################
+		# Loop through the minimum input number to the maximum number 
+		######################################################################################################
+
+		for number in range(self.minNumber, self.maxNumber):
 			# A sanity check that the code did not freeze for large permutation checks
-			whileCount += 1
-			if (whileCount % 100000 == 0):
-				print("+", whileCount, " while count listAllPermutations")
+			ifCount += 1
 
-						# Checks the digits of the current list against those of the original
+			if (ifCount % 500000 == 0):
+
+				print("+", ifCount, " if count listAllPermutations")
+
+			# Stops when the current number has checked every permutation in the appropriate range
+			if (currentNumber > self.maxNumber):
+				break
+
+			# Checks the digits of the current list against those of the original
 			if (sorted(currentNumberAsList) == self.permutationNumberAsList):
 
 				# If the digits are the same add them as a tuple to the set
 				self.permSet.add(tuple(currentNumberAsList))
 
+				if (currentNumber == self.maxNumber):
+					break
 
-				# We will be working right to left
-				ind = length
+				######################################################################################################
+				# Find the next largest permutation numerically
+				######################################################################################################
+
+				# # We will be working right to left
+				# ind = length
 				
-				# This finds the first time a singular number in the list is larger than the number to its left
-				while (currentNumberAsList[ind - 1] >= currentNumberAsList[ind]):
-					ind -= 1
+				# # This finds the first time a singular number in the list is larger than the number to its left
+				# # i.e. 13254 this will check 4 < 5 go to next index 5 > 2 stop at index 3
+
+				# while (currentNumberAsList[ind - 1] >= currentNumberAsList[ind]):
+
+				# 	ind -= 1
 
 
-					if (ind <= 0):
+				# 	if (ind <= 0):
+				# 		break
+				switchNum = -1
+				replaceNum = -1
+
+				for isSmaller in reversed(range(0,length)):
+
+					if currentNumberAsList[isSmaller] < currentNumberAsList[switchNum]:
+						switchNum = isSmaller
 						break
 
-				# This represents the start of the numbers we can replace with
-				replace = ind
+					switchNum = isSmaller
 
-				# ind is now the number which will be switched
-				ind -= 1
+				for replacement in reversed(range(switchNum,length)):
+
+					if ((currentNumberAsList[replacement] > currentNumberAsList[switchNum])):
+						replaceNum = replacement
+						break
 
 
-				if (replace < length):
-					# This finds the smallest number to the right of the number which will be changed
-					while ((currentNumberAsList[replace] >= currentNumberAsList[replace +1]) \
-							and currentNumberAsList[replace +1] > currentNumberAsList[ind]):
+				# # This represents the start of the numbers we can replace with
+				# # In the example this is now index 3 value 5
+				# replace = ind
+
+				# # ind is now the number which will be switched
+				# # In the example index 2 value 2
+				# ind -= 1
+
+				# # A check to make sure we do not go outside the length of the list
+				# if (replace < length):
+				# 	# This finds the smallest number to the right of the number which will be changed
+				# 	# In example we check if 4 < 5 and then if 4 > 2
+				# 	# since it is we move to the next spot in the list i.e. replace = index 4
+				# 	while ((currentNumberAsList[replace] >= currentNumberAsList[replace +1]) \
+				# 			and currentNumberAsList[replace +1] > currentNumberAsList[ind]):
 						
-						replace += 1
+				# 		replace += 1
 
-						if (replace >= length):
-							break
+				# 		if (replace >= length):
+				# 			break
 
-				currentNumberAsList[ind], currentNumberAsList[replace] = currentNumberAsList[replace], currentNumberAsList[ind]
+				# Here we swap the number index and the replace 
+				# i.e. now we have 13452
+				currentNumberAsList[switchNum], currentNumberAsList[replaceNum] = currentNumberAsList[replaceNum], currentNumberAsList[switchNum]
 
-				currentNumberAsList[ind+1: ] = sorted(currentNumberAsList[ind+1: ])
+				# Here we sort everything past where the index swap occured
+				# i.e. 13425
+				currentNumberAsList[switchNum+1: ] = sorted(currentNumberAsList[switchNum+1: ])
 
-				currentNumberString = ("".join(str(x) for x in currentNumberAsList))
-				#print("Here is the STRING!!!!!!!!!!!!!!!!!!", currentNumberString)
-				currentNumber = int(currentNumberString)
+				# Here we turn the list into an int to check
+				currentNumber = int("".join(str(x) for x in currentNumberAsList))
 
+			# This means the current number is not a permutation so we will increment by 1 until a permutation is found
 			else:
 				currentNumber += 1
 				currentNumberAsList = [int(d) for d in str(currentNumber)]
@@ -229,7 +295,7 @@ class listOfPermutations(Process):
 			
 
 		# Exits if the while loop gets too large
-		if (whileCount >= maxCount):
+		if (ifCount >= maxCount):
 			print("You done goofed in while listOfPermutations")
 			exit(-1)
 
@@ -240,8 +306,8 @@ class listOfPermutations(Process):
 			intTup = ''.join(str(i) for i in tup)
 
 			# Converts string into integer to index into the shared array
-			self.permListArray[self.index] = int(intTup)
-			self.index += 1
+			self.permListArray[self.count] = int(intTup)
+			self.count += 1
 
 
 class solutionsWithPermutations(Process):
@@ -269,19 +335,26 @@ class solutionsWithPermutations(Process):
 
 		self.permSetOfTuples = set(permListAsTuples)
 
-		self.count = Value('L')
-
-		self.count.value = index
-
 		self.solutionSet = set()
 
 	def run(self):
 
 		for number in self.permSetOfTuples:
 
-			#   (number[0] + 2 * number[1] / number[2] + number[3] + 12 * number[4] == 43)
-			if ((number[0] + 13 * number[1] / number[2] + number[3] + 12 * number[4] - number[5] - 11 + number[6] * number[7]\
-		 		 / number[8] - 10 == 66) and (number not in self.solutionSet)):	
+			'''
+				equation 1 5 input   (number[0] + 2 * number[1] / number[2] + number[3] + 12 * number[4] == 43)
+
+				equation 2 9 input order of ops
+				(number[0] + 13 * number[1] / number[2] + number[3] + 12 * number[4] - number[5] - 11 + number[6] * number[7]\
+		 		 / number[8] - 10 == 66)
+
+		 		equation 3 9 input no order of ops
+		 		 (((((((((((((number[0] + 13) * number[1]) / number[2]) + number[3]) + 12) * number[4]) - number[5]) - 11) + number[6]) * number[7])\
+		 		 / number[8]) - 10) == 66)
+
+			'''
+
+			if ((number[0] + 2 * number[1] / number[2] + number[3] + 12 * number[4] == 43) and (number not in self.solutionSet)):	
 				self.solutionSet.add(number)
 
 		# Adds each of the tuples as an integer to the permSolutionArray
@@ -291,5 +364,5 @@ class solutionsWithPermutations(Process):
 			intTup = ''.join(str(i) for i in tup)
 
 			# Converts string into integer to index into the shared array
-			self.permSolutionArray[self.count.value] = int(intTup)
-			self.count.value += 1
+			self.permSolutionArray[self.index] = int(intTup)
+			self.index += 1

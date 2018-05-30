@@ -6,7 +6,7 @@
 #  run the above with multiprocessing
 # Owner: Dominic Pontious
 
-from processing_permutations_test import *
+from processing_permutations_test3 import *
 from multiprocessing import cpu_count, Array
 import itertools
 import argparse
@@ -68,20 +68,20 @@ def runListPermutations(dividedList, permutationNumberAsList, processCount):
 
 	# The maximum length of the array would be every permutation
 	# added 15 as a catch for each process if for some reason it went farther
-	sizeOfArray = possiblePermutations(permutationNumberAsList) + (15*processCount)
+	sizeOfArray = possiblePermutations(permutationNumberAsList) + (100*processCount)
 
 	# Starts our Array at the first spot
 	index = 0
 
 	# Initializes the array for 2 bit int and with size of sizeOfArray
-	permListArray = Array('I', sizeOfArray, lock = False)
+	permListArray = Array('I', sizeOfArray)
 
 
 	# Initialize the process list permutations list and permutations set
 	processList = []
 	permList = []
 	permSet = set()
-	step = ((possiblePermutations(permutationNumberAsList) + (15*processCount)) // processCount)
+	step = ((possiblePermutations(permutationNumberAsList) + (100*processCount)) // processCount)
 
 	minPermutationAsList = sorted(permutationNumberAsList)
 
@@ -148,6 +148,7 @@ def runSolutionsPermutations(dividedList):
 	# Iterate through to give the processes their appropriate information, index and checkList
 	# and start the process
 	for number, checkList in enumerate(dividedList):
+		
 		process = solutionsWithPermutations(index, permSolutionArray, checkList)
 
 		processList.append(process)
@@ -159,6 +160,7 @@ def runSolutionsPermutations(dividedList):
 
 	# Wait for the processes to finish
 	for process in processList:
+
 		process.join()
 
 	# Takes the results from the Array and makes them into a list of tuples
@@ -199,7 +201,8 @@ def main():
 	defaultProcessCount = cpu_count()
 
 	# Default numbers and numberLists
-	defaultNumberList = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+	defaultNumberList = [1, 2, 3, 4, 5]
+
 
 	######################################################################################################
 	# Command line interactions
@@ -233,6 +236,9 @@ def main():
 	listOfPerms = runListPermutations(dividedNumbers, totalNumberList, totalProcess)
 
 
+	print(str(len(listOfPerms)))
+
+
 	# End for stop time for how fast program ran
 	stop = datetime.datetime.now()
 	print(stop - start)
@@ -250,6 +256,7 @@ def main():
 
 	# Print the number of solutions
 	print(str(len(solutionOfPerms)) + " is the number of solutions given the input numbers: " + totalNumberString)
+
 
 
 
