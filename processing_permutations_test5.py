@@ -10,6 +10,7 @@
 # Makes use of process and pipe
 from multiprocessing import Process, Pipe
 
+
 def divideNumberListPermutations(numberList, processCount):
 	"""
 	Given a numberList as a list which has an integer in each spot and the number of processes,
@@ -36,6 +37,10 @@ def divideNumberListPermutations(numberList, processCount):
 
 	# Calculate the index step size. Make sure the step is at least 1.
 	inputRange = numberMax - numberMin
+
+	# Ensures there is at least 1 process
+	processCount = max(1, processCount)
+
 	step = max(1, inputRange // processCount)
 
 	# If there are too many processes, reduce the number of processes to the number of input values
@@ -88,11 +93,17 @@ def dividePermutationList(permutationList, processCount):
 	# Break it up by how many processes
 	######################################################################################################
 
+	# Ensures there is at least 1 process
+	processCount = max(1, processCount)
+
 	# Calculate the index step size. Make sure the step is at least 1.
 	step = max(1, len(permutationList) // processCount)
 
+
 	# If there are too many processes, reduce the number of processes to the number of input values
 	processCount = min(processCount, len(permutationList))
+
+
 
 	# A list containing lists of chunked permutation tuples
 	outputList = []
@@ -149,7 +160,6 @@ class listOfPermutations(Process):
 				maxNumber <int>
 				permConn <Object> <- The sending end of a Pipe object
 				permutationNumberAsList [<int>]
-				permNumAsSet {(int)} <- set of tuples of ints
 				comparePermutation <str>
 				permSet {(int)} <- set of tuples of ints
 		Output: None
@@ -163,8 +173,6 @@ class listOfPermutations(Process):
 		self.permConn = permConn
 
 		self.permutationNumberAsList = permutationNumberAsList
-
-		self.permNumbAsSet = set(permutationNumberAsList)
 
 		self.comparePermutation = sorted("".join(str(n) for n in permutationNumberAsList))
 
@@ -224,6 +232,7 @@ class listOfPermutations(Process):
 				# If the digits are the same add them as a tuple to the set
 				self.permSet.add(tuple(currentNumberAsList))
 
+				# Ensures the final permutation is added to the set
 				if (currentNumber == self.maxNumber):
 					break
 
@@ -253,7 +262,8 @@ class listOfPermutations(Process):
 
 
 				# Here we swap the switchNum and the replace 
-				currentNumberAsList[switchNum], currentNumberAsList[replaceNum] = currentNumberAsList[replaceNum], currentNumberAsList[switchNum]
+				currentNumberAsList[switchNum], currentNumberAsList[replaceNum] = \
+				currentNumberAsList[replaceNum], currentNumberAsList[switchNum]
 
 				# Here we sort everything past where the swap occured
 				currentNumberAsList[switchNum+1: ] = sorted(currentNumberAsList[switchNum+1: ])
@@ -261,15 +271,52 @@ class listOfPermutations(Process):
 				# Here we turn the list into an int to run again
 				currentNumber = int("".join(str(x) for x in currentNumberAsList))
 
-			# This means the current number is not a permutation so we will increment by 1 we can then check it against a set
-			# if the digits are not the same we can increment by 1 again and run the whole for loop.
-			# This speeds the code up a bit by doing two checks at once
+			######################################################################################################
+			# A permutation was not found, check the next 8 numbers 
+			######################################################################################################
+
+			# This means the current number is not a permutation so we will increment by 1 we can then check it against the original
+			# This speeds the code up because if a number is not a permutation there will be at most one permutation in the next 8 numbers
 			else:
 				currentNumber += 1
+				numberPlus1 = currentNumber +1
+				numberPlus2 = currentNumber +2
+				numberPlus3 = currentNumber +3
+				numberPlus4 = currentNumber +4
+				numberPlus5 = currentNumber +5
+				numberPlus6 = currentNumber +6
+				numberPlus7 = currentNumber +7
 				currentNumberString = str(currentNumber)
 				currentSet = set(currentNumberString)
-				if (currentSet is not self.permNumbAsSet):
-					currentNumber += 1
+				if (sorted(currentNumberString) == self.comparePermutation):
+					pass
+
+				elif (sorted(str(numberPlus1)) == self.comparePermutation):
+					currentNumber = numberPlus1
+					currentNumberString = str(currentNumber)
+
+				elif (sorted(str(numberPlus2)) == self.comparePermutation):
+					currentNumber = numberPlus2
+					currentNumberString = str(currentNumber)
+
+				elif (sorted(str(numberPlus3)) == self.comparePermutation):
+					currentNumber = numberPlus3
+					currentNumberString = str(currentNumber)
+
+				elif (sorted(str(numberPlus4)) == self.comparePermutation):
+					currentNumber = numberPlus4
+					currentNumberString = str(currentNumber)
+
+				elif (sorted(str(numberPlus5)) == self.comparePermutation):
+					currentNumber = numberPlus5
+					currentNumberString = str(currentNumber)
+
+				elif (sorted(str(numberPlus6)) == self.comparePermutation):
+					currentNumber = numberPlus6
+					currentNumberString = str(currentNumber)
+
+				else:
+					currentNumber = numberPlus7
 					currentNumberString = str(currentNumber)
 
 
@@ -294,16 +341,20 @@ class solutionsWithPermutations(Process):
 		permSolutionConn <Object> <- The sending end of a Pipe object
 		permListAsTuples [(<int>)] 
 		permSetOfTuples {(<int>)}
-		solutionSet {(<int>)}
+		equationChoice <str>
+		solutionList [(<int>)]
 	Methods:
 		__init__(self, index, permSolutionArray, permListAsTuples): Initializes the process turns the list into a set 
+		exception_filert(self,fun,iter): Exception handler for the lambda functions
 		run(self) For every element in the set of tuples compares it against the equations, and if it is not
 		 already a solution adds it to the set.
 		 Pipes each of the tuples in the set to the parent process
 	"""
-	def __init__(self, permSolutionConn, permListAsTuples):
+	def __init__(self, permSolutionConn, permListAsTuples, equationChoice):
 		"""
 		Initializes the process turns the list into a set 
+		Input: None
+		Output: None
 		"""
 		Process.__init__(self)
 
@@ -311,36 +362,74 @@ class solutionsWithPermutations(Process):
 
 		self.permSetOfTuples = set(permListAsTuples)
 
-		self.solutionSet = set()
+		self.equationChoice = equationChoice
+
+		self.solutionList = []
+
+	def exception_filter(self, func, iter):
+		"""
+		Exception handler for my lambda functions, specifically if the function called did not receive enough 
+		 input values, i.e. an index error
+		Input:	func <lambda func>
+				iter {(<int>)}
+		Output:	result [(int)]
+		"""
+		result = []
+		for i in iter:
+			try:
+				if func(i):
+					result.append(i)
+
+			except IndexError:
+				# Did not input enough digits for the requested equation
+				SystemExit(-1)
+				break
+
+		return result
+
+
 
 	def run(self):
 		"""
 		For every element in the set of tuples compares it against the equations, and if it is not
 		 already a solution adds it to the set.
 		 Pipes each of the tuples in the set to the parent process
+		Input: None
+		Output: None
 		"""
 
-		# A set of tuples is passed in and we check each of the values within the tuple to see which of them have the 
-		# equation as true
-		for number in self.permSetOfTuples:
+		# A set of tuples is passed in and we filter the permSetOfTuples which is passed in by
+		# the equation and solutionList becomes the resulting tuples after the filter
 
-			'''
-				equation 1 5 input   (number[0] + 2 * number[1] / number[2] + number[3] + 12 * number[4] == 43)
 
-				equation 2 9 input order of ops
-				(number[0] + 13 * number[1] / number[2] + number[3] + 12 * number[4] - number[5] - 11 + number[6] * number[7]\
-		 		 / number[8] - 10 == 66)
+		self.solutionList = self.exception_filter(lambda x: x[0] + 13 * x[1] / x[2] + x[3] + 12 * x[4] - x[5] - 11 + x[6] * x[7]\
+		/ x[8] - 10 == 66, self.permSetOfTuples)
 
-		 		equation 3 9 input no order of ops
-		 		 (((((((((((((number[0] + 13) * number[1]) / number[2]) + number[3]) + 12) * number[4]) - number[5]) - 11) + number[6]) * number[7])\
-		 		 / number[8]) - 10) == 66)
 
-			'''
-			# Here is the formula
-			if ((number[0] + 13 * number[1] / number[2] + number[3] + 12 * number[4] - number[5] - 11 + number[6] * number[7]\
-		 		 / number[8] - 10 == 66) and (number not in self.solutionSet)):	
+		if(self.equationChoice == "FiveDigitEquation"):
+			self.solutionList = self.exception_filter(lambda x: x[0] + 2 * x[1] / x[2] + x[3] + 12 * x[4] == 43, self.permSetOfTuples)
 
-				self.solutionSet.add(number)
+		elif(self.equationChoice == "VietNoOrderOps"):
+			self.solutionList = self.exception_filter(lambda x: ((((((((((((x[0] + 13) * x[1]) / x[2]) + x[3]) + 12) * x[4]) - x[5]) - 11) + x[6]) * x[7])\
+	 		 / x[8]) - 10) == 66, self.permSetOfTuples)
+
+		elif(self.equationChoice == "TenDIGITS"):
+			self.solutionList = self.exception_filter(lambda x: x[0] + 13 * x[1] / x[2] + x[3] + 12 * x[4] - x[5] - 11 + x[6] * x[7]\
+				/ x[8] - 10 + x[9] == 75, self.permSetOfTuples)
+
+
+		'''
+			equation 1 5 input   (number[0] + 2 * number[1] / number[2] + number[3] + 12 * number[4] == 43)
+
+			equation 2 9 input order of ops
+			(number[0] + 13 * number[1] / number[2] + number[3] + 12 * number[4] - number[5] - 11 + number[6] * number[7]\
+	 		 / number[8] - 10 == 66)
+
+	 		equation 3 9 input no order of ops
+	 		 (((((((((((((number[0] + 13) * number[1]) / number[2]) + number[3]) + 12) * number[4]) - number[5]) - 11) + number[6]) * number[7])\
+	 		 / number[8]) - 10) == 66)
+
+		'''
 			
 		# Using the Pipe to send the solutions as a tuple
-		self.permSolutionConn.send(tuple(self.solutionSet))
+		self.permSolutionConn.send(tuple(self.solutionList))

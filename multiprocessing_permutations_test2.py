@@ -105,7 +105,7 @@ def runListPermutations(dividedList, permutationNumberAsList, processCount):
 
 	return permSet
 
-def runSolutionsPermutations(dividedList):
+def runSolutionsPermutations(dividedList, equationChoice):
 	"""
 	Given a list which has all possible permutations of some given number, 
 	 see dividePermutationList(), establishes a pipe between the parent and
@@ -130,7 +130,7 @@ def runSolutionsPermutations(dividedList):
 	for number, checkList in enumerate(dividedList):
 		
 		# Defines the process
-		process = solutionsWithPermutations(child_conn, checkList)
+		process = solutionsWithPermutations(child_conn, checkList, equationChoice)
 
 		# Adds the new process to the processList
 		processList.append(process)
@@ -172,31 +172,65 @@ def main():
 	parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawTextHelpFormatter)
 
 	# Default max number of process to use
-	defaultProcessCount = cpu_count()
+	defaultProcessCount = cpu_count() + 1
 
 	# Default numbers and numberLists
 	defaultNumberList = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+	# Default equation formula
+	defaultEquation = "VietOrderOfOp"
 
 
 	######################################################################################################
 	# Command line interactions
 	######################################################################################################
 
-	# Add arguments to the parser
+	# Add arguments to the parser new lines in help to make formating look nice
 	parser.add_argument("-n", "--numbers", help="path to input numbers to check for solutions", default=defaultNumberList)
 	parser.add_argument("-p", "--process", help="path to input process count", default=defaultProcessCount)
+	parser.add_argument("-e", "--equation", help="path to input which equation, if incorrect input will default \n" \
+						"The following commands have equations associated with them: \n" \
+						"Default equation is Vietnamese equation respecting order of ops:\n requies at least 9 inputs values \n" \
+						"FiveDigitEquation is an equation:requires at least 5 input\n values \n" \
+						"VietNoOrderOps is the Vietnamese equation ignoring order of ops:\n requires at least 9 input values \n" \
+						"TenDIGITS extension of Viet with 10 value inputs: \n requires at least 10 input values \n" \
+						, default=defaultEquation)
 
 	# Parse the command line arguments
 	args = parser.parse_args()
 
-	# Read in the desired number of processes
-	totalProcess = int(args.process)
+	try:
+		# Read in the desired number of processes
+		totalProcess = int(args.process)
 
-	# Turn the input into a single int
+	except ValueError:
+		print("You input an invalid character for the number of processes\nPlease input an integer")
+		exit(-1)
+
+	# Turn the input into a single string
 	totalNumberString = ("".join(str(x) for x in args.numbers))
 
-	# Turns the current integer number into a list of single numbers
-	totalNumberList = [int(d) for d in str(totalNumberString)]
+	######################################################################################################
+	# Error handling
+	######################################################################################################
+
+	# Turns the current integer number into a list of single numbers, ensures only correct input
+	correctInputSet = {1,2,3,4,5,6,7,8,9}
+	try:
+		totalNumberList = [int(d) for d in str(totalNumberString)]
+
+	# Ensures integers were input
+	except ValueError:
+		print("It seems you input an invalid type for possible inputs please try again")
+		exit(-1)
+
+	for digit in totalNumberList:
+		if digit not in correctInputSet:
+			print("We cannot deal with your input: ", str(digit), " please try again with only numbers 1-9")
+			exit(-1)
+
+	# Read in the desired equation
+	equationChoice = args.equation
 
 
 	######################################################################################################
@@ -226,10 +260,15 @@ def main():
 	dividedPermList = dividePermutationList(list(listOfPerms), totalProcess)
 
 	# Calculate all solutions for the equation in runSolutionsPermutations
-	solutionOfPerms = runSolutionsPermutations(dividedPermList)
+	solutionOfPerms = runSolutionsPermutations(dividedPermList, equationChoice)
+
+
 
 	# Print the number of solutions
-	print(str(len(solutionOfPerms)) + " is the number of solutions given the input numbers: " + totalNumberString)
+	print(str(len(solutionOfPerms)), " is the number of solutions given the input numbers: ", totalNumberString)
+
+	if (len(solutionOfPerms) == 0):
+		print("It seems you did not input enough numbers for the equation")
 
 
 
