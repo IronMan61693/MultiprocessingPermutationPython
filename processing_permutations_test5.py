@@ -401,11 +401,6 @@ class solutionsWithPermutations(Process):
 		# A set of tuples is passed in and we filter the permSetOfTuples which is passed in by
 		# the equation and solutionList becomes the resulting tuples after the filter
 
-
-		self.solutionList = self.exception_filter(lambda x: x[0] + 13 * x[1] / x[2] + x[3] + 12 * x[4] - x[5] - 11 + x[6] * x[7]\
-		/ x[8] - 10 == 66, self.permSetOfTuples)
-
-
 		if(self.equationChoice == "FiveDigitEquation"):
 			self.solutionList = self.exception_filter(lambda x: x[0] + 2 * x[1] / x[2] + x[3] + 12 * x[4] == 43, self.permSetOfTuples)
 
@@ -417,19 +412,11 @@ class solutionsWithPermutations(Process):
 			self.solutionList = self.exception_filter(lambda x: x[0] + 13 * x[1] / x[2] + x[3] + 12 * x[4] - x[5] - 11 + x[6] * x[7]\
 				/ x[8] - 10 + x[9] == 75, self.permSetOfTuples)
 
+		else:
+			self.solutionList = self.exception_filter(lambda x: x[0] + 13 * x[1] / x[2] + x[3] + 12 * x[4] - x[5] - 11 + x[6] * x[7]\
+			/ x[8] - 10 == 66, self.permSetOfTuples)
 
-		'''
-			equation 1 5 input   (number[0] + 2 * number[1] / number[2] + number[3] + 12 * number[4] == 43)
 
-			equation 2 9 input order of ops
-			(number[0] + 13 * number[1] / number[2] + number[3] + 12 * number[4] - number[5] - 11 + number[6] * number[7]\
-	 		 / number[8] - 10 == 66)
-
-	 		equation 3 9 input no order of ops
-	 		 (((((((((((((number[0] + 13) * number[1]) / number[2]) + number[3]) + 12) * number[4]) - number[5]) - 11) + number[6]) * number[7])\
-	 		 / number[8]) - 10) == 66)
-
-		'''
 			
 		# Using the Pipe to send the solutions as a tuple
 		self.permSolutionConn.send(tuple(self.solutionList))
